@@ -1,0 +1,16 @@
+.controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 14px 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+  border-radius: 15px;
+}
+
+#swingSlider {
+  width: 230px;
+  accent-color: #634ff7;
+  cursor: pointer;
+}

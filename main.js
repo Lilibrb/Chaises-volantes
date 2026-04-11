@@ -3,142 +3,183 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
-const viewport = {
-  width: window.innerWidth,
-  height: window.innerHeight,
-};
-
-// scene, camera, renderer
+// scène, caméra, renderer
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xddeeff);
+
 const camera = new THREE.PerspectiveCamera(
   45,
-  viewport.width / viewport.height,
+  window.innerWidth / window.innerHeight,
   0.1,
-  1000,
+  1000
 );
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(viewport.width, viewport.height); //définie une taille
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enablePan = false;
-controls.enableDamping = true;
-controls.cursorStyle = "grap";
-controls.autoRotate = true;
+// lumières
 
-const planeGeometry = new THREE.PlaneGeometry(10, 10);
-const planeMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x00ff00,
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const positions = [
+  new THREE.Vector3(5, 4, 5),
+  new THREE.Vector3(-5, 4, 5),
+  new THREE.Vector3(5, 4, -5),
+  new THREE.Vector3(-5, 4, -5),
+];
+
+positions.forEach((pos) => {
+  const light = new THREE.DirectionalLight(0xffffff, 0.8);
+  light.position.copy(pos);
+  light.castShadow = true;
+  
+  scene.add(light);
 });
 
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-plane.receiveShadow = true;
+const innerLight = new THREE.PointLight(0xffffff, 0.6, 10);
+innerLight.position.set(0, 2, 0);
+scene.add(innerLight);
 
+// sol
+
+const plane = new THREE.Mesh(
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.MeshStandardMaterial({ color: 0x888888 })
+);
 plane.rotation.x = -Math.PI / 2;
 plane.position.y = -0.5;
+plane.receiveShadow = true;
+scene.add(plane);
 
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshNormalMaterial();
+scene.add(new THREE.GridHelper(20, 10));
 
-const cube = new THREE.Mesh(geometry, material);
-cube.castShadow = true;
+//controls
 
-scene.add(cube, plane);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = false;
+controls.enablePan = true;
+controls.enableZoom = true;
+controls.minPolarAngle = 0;
+controls.maxPolarAngle = Math.PI;
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath(
-  "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
+  "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
 );
 
-const imageloader = new THREE.TextureLoader();
-const texture = imageloader.load("angel.jpg");
-texture.colorSpace = THREE.SRGBColorSpace;
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
 
-const imgMaterial = new THREE.MeshBasicMaterial({
-  map: texture,
+let manege;
+let manegeCenter = new THREE.Vector3();
+let rotationAngle = 0;
+
+const chairs = [];
+const swingSlider = document.getElementById("swingSlider");
+
+
+gltfLoader.load("/Chaisesvolantes_final.glb", (gltf) => {
+  manege = gltf.scene;
+  scene.add(manege);
+
+  const box = new THREE.Box3().setFromObject(manege);
+  const center = box.getCenter(new THREE.Vector3());
+  manegeCenter.copy(center);
+
+  manege.traverse((obj) => {
+    if (obj.name.toLowerCase().includes("chair")) {
+      obj.castShadow = true;
+
+      const pos = obj.position.clone();
+
+      obj.userData.initialPosition = pos.clone();
+
+      obj.userData.radius = new THREE.Vector3(
+        pos.x - center.x,
+        0,
+        pos.z - center.z
+      );
+
+      obj.userData.initialRotation = obj.rotation.clone();
+
+      chairs.push(obj);
+    }
+  });
+
+  const size = box.getSize(new THREE.Vector3());
+const distance = Math.max(size.x, size.z) * 2;
+
+camera.position.set(
+  distance * 0.6,
+  size.y * 0.4,
+  distance
+);
+
+controls.target.set(0, size.y * 0.4, 0);
+controls.update();
+
+});
+// animation
+
+function animate() {
+  controls.update();
+
+  const sliderValue = parseFloat(swingSlider.value || 0);
+
+  const speed = 0.01 + sliderValue * 0.01;
+  rotationAngle -= speed;
+
+  const maxLift = 4;
+  const maxTilt = Math.PI / 8;
+
+chairs.forEach((chair) => {
+
+  const radius = chair.userData.radius;
+  const baseY = chair.userData.initialPosition.y;
+
+  const liftFactor = sliderValue / 5;
+
+const angle = liftFactor * maxTilt;
+
+const radiusScale = Math.sin(angle);
+
+const x =
+  manegeCenter.x +
+  (radius.x * (1 + radiusScale) * Math.cos(rotationAngle) -
+  radius.z * (1 + radiusScale) * Math.sin(rotationAngle));
+
+const z =
+  manegeCenter.z +
+  (radius.x * (1 + radiusScale) * Math.sin(rotationAngle) +
+  radius.z * (1 + radiusScale) * Math.cos(rotationAngle));
+
+
+const y = baseY + liftFactor * maxLift;
+chair.position.set(x, y, z);
+
+const outward = new THREE.Vector3(x - manegeCenter.x, 0, z - manegeCenter.z).normalize();
+
+chair.lookAt(chair.position.clone().add(outward));
+
+chair.rotateY(-Math.PI / 2);
+
+  const tilt = (sliderValue / 5) * maxTilt;
+  chair.rotation.x += tilt;
+  chair.rotation.z += tilt;
 });
 
-// const loader = new GLTFLoader();
-// loader.setDRACOLoader(dracoLoader);
-// loader.load("model.glb", (gltf) => {
-
-//     gltf.scene.traverse((child) => {
-//         if (child.isMesh) {
-//             child.material = imgMaterial;
-//         }
-//     });
-//     scene.add(gltf.scene);
-//     renderer.render(scene, camera);
-// });
-
-camera.position.set(1, 2, 3);
-camera.lookAt(cube.position);
-
-const ambLight = new THREE.AmbientLight(0xffffff, 1);
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(0, 5, 0);
-dirLight.target.position.set(-5, 0, 2);
-dirLight.castShadow = true;
-scene.add(ambLight, dirLight, dirLight.target);
-
-function helpers() {
-  const gridHelper = new THREE.GridHelper(10, 5);
-  const axesHelper = new THREE.AxesHelper(5);
-  gridHelper.position.y = -0.5;
-
-  scene.add(gridHelper, axesHelper);
-}
-
-helpers();
-
-window.onresize = () => {
-  viewport.width = window.innerWidth;
-  viewport.height = window.innerHeight;
-
-  camera.aspect = viewport.width / viewport.height;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(viewport.width, viewport.height);
-  renderer.render(scene, camera);
-};
-
-function animate(time) {
-  // cube.scale.x = Math.sin(time / 1000) + 2;
-  // cube.position.z = Math.sin(time / 1000);
-  // cube.rotation.y = Math.PI * Math.sin (time / 1000);
-  controls.update();
   renderer.render(scene, camera);
 }
-
-// animation en fonction du scroll
-
-// let scrollprogress = 0;
-// window.addEventListener("scroll", () => {
-//   const scrollTop = window.scrollY;
-//   const maxScroll = document.body.scrollHeight - window.innerHeight;
-
-// scrollprogress = scrollTop / maxScroll;
-
-// });
-
-// function animate() {
-// resquestAnimationFrame(animate);
-
-// if (manege){
-//   const rotationspeed = scrollprogress * 10;
-//   manege.position.y += rotationSpeed * 0.01;
-
-//   const maxHeight = 5;
-//   manege.position.y = scrollProgress * maxHeight;
-// }
-//  renderer.render(scene, camera);
-
-// }
-// animate();
 
 renderer.setAnimationLoop(animate);
 
-renderer.render(scene, camera);
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});

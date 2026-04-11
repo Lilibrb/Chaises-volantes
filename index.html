@@ -4,11 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chaises volantes</title>
+    <link rel="stylesheet" href="style.css">
     <style>
         body { margin:0;}
     </style>
 </head>
 <body>
+   <div class="controls">
+ <label for="swingSlider">
+  <img src="public\vitesse.png" alt="logo vitesse" style="height:40px; vertical-align:middle;">
+</label>
+  <input type="range" id="swingSlider" min="0" max="5" step="0.1" value="0" list="swingSteps">
+  <datalist id="swingSteps">
+    <option value="0"></option>
+    <option value="1"></option>
+    <option value="2"></option>
+    <option value="3"></option>
+    <option value="4"></option>
+    <option value="5"></option>
+  </datalist>
+</div>
     <script type="module" src="main.js"></script>
 </body>
 </html>
