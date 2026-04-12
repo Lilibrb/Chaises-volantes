@@ -84,7 +84,7 @@ const chairs = [];
 const swingSlider = document.getElementById("swingSlider");
 
 
-gltfLoader.load("/Chaisesvolantes/public/Chaisesvolantes_final.glb", (gltf) => {
+gltfLoader.load("/Chaises-volantes/public/Chaisesvolantes_final.glb", (gltf) => {
   manege = gltf.scene;
   scene.add(manege);
 
