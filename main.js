@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import {HDRLoader} from "three/addons/loaders/HDRLoader.js";
 
 // scène, caméra, renderer
 
@@ -83,7 +84,7 @@ const chairs = [];
 const swingSlider = document.getElementById("swingSlider");
 
 
-gltfLoader.load("/Chaisesvolantes_final.glb", (gltf) => {
+gltfLoader.load("/Chaisesvolantes/public/Chaisesvolantes_final.glb", (gltf) => {
   manege = gltf.scene;
   scene.add(manege);
 
